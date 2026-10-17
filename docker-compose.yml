@@ -1,0 +1,67 @@
+# News Calendar v1 — run: cp .env.example .env && docker compose up --build
+# Open: http://localhost:8088   (public use: see README "Public exposure" + docker-compose.public.yml)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro   # *.sql / *.sh run once, on first boot only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: ${ConnectionStrings__Default}
+      API_KEY: ${API_KEY:-}
+      Cors__Origins: ${CORS_ORIGINS:-http://localhost:8088}
+      TZ: ${TZ:-America/New_York}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HA_ORIGIN: ${HA_ORIGIN:-}
+    ports:
+      # WEB_BIND=127.0.0.1 -> only a reverse proxy on this machine can reach it (recommended for public use)
+      - "${WEB_BIND:-0.0.0.0}:8088:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]  # 127.0.0.1: "localhost" may resolve to IPv6 ::1, nginx listens IPv4 only
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -1,0 +1,78 @@
+# Rendered at container start: ${HA_ORIGIN} is filled from .env, everything else ($host, $uri ...) is left alone.
+# This file is included inside nginx's http{} block, so http-level directives are fine at the top.
+
+# ---- rate / connection limits (per client IP) ----
+# Reads: ~10 req/s per IP with a burst of 40. Writes (POST/PUT/DELETE): ~30 per minute per IP, burst 10.
+limit_req_zone $binary_remote_addr zone=reads:10m rate=10r/s;
+map $request_method $write_key {
+    default "";                        # empty key = not counted in the writes zone
+    POST    $binary_remote_addr;
+    PUT     $binary_remote_addr;
+    DELETE  $binary_remote_addr;
+}
+limit_req_zone $write_key zone=writes:10m rate=30r/m;
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+limit_req_status 429;
+limit_conn_status 429;
+
+# ---- real client IP behind a reverse proxy / tunnel ----
+# Only trust X-Forwarded-For from private addresses (your Caddy/nginx/cloudflared on the same host or LAN).
+# A client coming straight from the internet is never trusted, so it can't spoof its IP to dodge the limits.
+set_real_ip_from 127.0.0.1;
+set_real_ip_from 10.0.0.0/8;
+set_real_ip_from 172.16.0.0/12;
+set_real_ip_from 192.168.0.0/16;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+
+server {
+    listen 80;
+    server_tokens off;
+    root /usr/share/nginx/html;
+
+    limit_conn perip 30;
+    limit_req zone=reads burst=40 nodelay;
+    limit_req zone=writes burst=10 nodelay;
+
+    # Small JSON bodies only, and don't let slow clients hold connections open.
+    client_max_body_size 64k;
+    client_header_timeout 10s;
+    client_body_timeout 10s;
+    send_timeout 15s;
+    keepalive_timeout 30s;
+
+    # ---- security headers (server level only: an add_header inside a location would drop these) ----
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    # frame-ancestors replaces X-Frame-Options and lets us allow Home Assistant (HA_ORIGIN, blank = nobody else).
+    # The app loads nothing from other sites, so everything else can be locked to 'self'.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' ${HA_ORIGIN}" always;
+    # HSTS is deliberately NOT here: this container speaks plain HTTP. Set it on your HTTPS reverse proxy (see README).
+
+    # Same-origin API: the browser calls /api/..., nginx forwards to the api container.
+    location /api/ {
+        proxy_pass http://api:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;   # $remote_addr is already the real client via real_ip above
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_hide_header X-Powered-By;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+    }
+
+    # DB up/down detail isn't for the public: allow only local and private-network clients.
+    location = /health {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+        proxy_pass http://api:8080/health;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}
