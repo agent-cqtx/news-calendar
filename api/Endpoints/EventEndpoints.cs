@@ -45,10 +45,11 @@ public static class EventEndpoints
             if (string.IsNullOrWhiteSpace(q)) return Errors.BadRequest("Query parameter 'q' is required.");
             if (q.Length > MaxQuery) return Errors.BadRequest($"Query must be at most {MaxQuery} characters.");
             var take = Math.Clamp(limit ?? 25, 1, 100);
-            // WebSearchToTsQuery must be called inside the LINQ expression so EF translates it to SQL.
+            // Prefix matching ("space" → "space:*") so partial-word queries match compound names (SpaceX).
+            var tsQuery = BuildTsQuery(q);
             var items = await db.Events.AsNoTracking()
-                .Where(e => e.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", q)))
-                .OrderByDescending(e => e.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", q)))
+                .Where(e => e.SearchVector.Matches(EF.Functions.ToTsQuery("english", tsQuery)))
+                .OrderByDescending(e => e.SearchVector.Rank(EF.Functions.ToTsQuery("english", tsQuery)))
                 .ThenByDescending(e => e.EventDate)
                 .Take(take)
                 .Select(e => new EventSummaryDto(e.Id, e.EventDate, e.Title, e.Summary))
@@ -171,6 +172,31 @@ public static class EventEndpoints
 
     // ---- helpers ----
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// Builds a tsquery string with prefix matching on every token.
+    /// "space" → "space:*"  so partial-word queries match compound names (SpaceX, Starship, etc.).
+    /// Preserves websearch operators: "or" → |,  "-word" → !word:*,  multiple words joined with &amp;.
+    private static string BuildTsQuery(string q)
+    {
+        var tokens = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var parts = new List<string>();
+        var nextIsOr = false;
+        foreach (var t in tokens)
+        {
+            if (t.Equals("or", StringComparison.OrdinalIgnoreCase))
+            {
+                nextIsOr = true;
+                continue;
+            }
+            if (parts.Count > 0) parts.Add(nextIsOr ? "|" : "&");
+            nextIsOr = false;
+            if (t.StartsWith("-") && t.Length > 1)
+                parts.Add("!" + t[1..] + ":*");
+            else
+                parts.Add(t + ":*");
+        }
+        return string.Join(" ", parts);
+    }
 
     private static (Dictionary<string, string> errors, List<EventSource> sources) Validate(
         DateOnly? date, string? title, string? summary, string? externalKey, List<SourceInput>? input, string? description = null)
