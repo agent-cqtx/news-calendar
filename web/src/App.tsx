@@ -7,7 +7,7 @@ import './App.css'
 export default function App() {
   return (
     <main className="app">
-      <header className="top"><h1><Link to="/">News Calendar</Link></h1><Link to="/post">Post test</Link></header>
+      <header className="top"><h1><Link to="/">News Calendar</Link></h1></header>
       <Routes>
         <Route path="/" element={<MonthPage />} />
         <Route path="/post" element={<PostPage />} />

@@ -81,8 +81,8 @@ export function PostPage() {
       <h2>Post a news event (test)</h2>
       <p className="muted">Sends <code>POST /api/events</code>. Date and title are required.</p>
       <form className="post-form" onSubmit={submit} noValidate>
-        <label>X-Api-Key (optional)
-          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="leave blank if the API has no key" />
+        <label>X-Api-Key
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="required if the API has a key set" />
         </label>
         <label>Title *
           <input value={title} onChange={(e) => setTitle(e.target.value)} />

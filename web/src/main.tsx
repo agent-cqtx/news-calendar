@@ -10,10 +10,14 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 })
 
+// React Router basename: matches Vite's base config (via import.meta.env.BASE_URL).
+// Standalone: '/' → no prefix. VPS path-based: '/news-calendar/' → all links under that prefix.
+const BASENAME = import.meta.env.BASE_URL?.replace(/\/+$/, '') || undefined
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={BASENAME}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>
