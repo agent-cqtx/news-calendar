@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Dev only: forward /api to the API so code can use the same relative URL as production.
+// BASE_HREF build arg: '/' (default, standalone) or '/news-calendar/' (VPS path-based deploy).
+const BASE = process.env.BASE_HREF || '/'
+
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { '/api': 'http://localhost:8080' } }, // change to your API port
+  base: BASE,
+  server: { proxy: { '/api': 'http://localhost:8080', '/news-calendar/api': 'http://localhost:8080' } },
 })

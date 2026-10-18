@@ -2,6 +2,14 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+
+# Path-based deploy (apps.quinterox.com/news-calendar): override in compose build args.
+# Defaults: standalone at root (/).
+ARG BASE_HREF=/
+ARG VITE_API_BASE=/api/events
+ENV BASE_HREF=$BASE_HREF
+ENV VITE_API_BASE=$VITE_API_BASE
+
 COPY . .
 RUN npm run build
 

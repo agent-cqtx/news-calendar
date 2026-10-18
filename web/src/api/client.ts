@@ -1,7 +1,7 @@
 import type { ApiError, CreateEventResponse, EventDetail, EventSummary, NewEvent } from './types'
 
 // Relative base → works behind the nginx proxy (and Vite's dev proxy).
-const BASE = '/api/events'
+const BASE = import.meta.env.VITE_API_BASE || '/api/events'
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url)

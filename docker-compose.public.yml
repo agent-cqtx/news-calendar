@@ -1,8 +1,14 @@
 # Public-exposure override. Use it ON TOP of the base file:
 #   docker compose -f docker-compose.yml -f docker-compose.public.yml up -d --build
 # It refuses to start unless API_KEY is set, so writes can never be left open to the internet by accident.
+# Also sets the path-based build args so the web app expects /news-calendar/ prefix (for Caddy handle_path).
 # Pair it with WEB_BIND=127.0.0.1 in .env and an HTTPS reverse proxy (or tunnel) in front. See README.
 services:
   api:
     environment:
       API_KEY: ${API_KEY:?Set API_KEY in .env before exposing this publicly (openssl rand -hex 32)}
+  web:
+    build:
+      args:
+        BASE_HREF: /news-calendar/
+        VITE_API_BASE: /news-calendar/api/events
