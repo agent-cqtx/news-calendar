@@ -1,1 +1,120 @@
-body{margin:0;background:#f8fafc;font-family:system-ui,sans-serif;color:#1a1a1a}*{box-sizing:border-box}
+/* ─────────────────────────────────────────────────────────────
+   News Calendar — Theme Variables & Base
+   Dark (default) + Light override
+   ───────────────────────────────────────────────────────────── */
+
+/* ═── Dark theme (default) ─────────────────────────── */
+:root {
+  --bg:             #0a0a0a;
+  --bg-surface:      #141414;
+  --bg-hover:        #1a1a2e;
+  --bg-chip:         #1a1a3a;
+  --bg-grid-head:    #111;
+  --bg-blank:        #0d0d0d;
+  --bg-input:        #1a1a1a;
+
+  --text:            #ededed;
+  --text-muted:      #888;
+  --text-snippet:    #aaa;
+
+  --border:          #404040;
+  --border-grid:     #2a2a2a;
+
+  --accent:          #5e6ad2;
+  --accent-text:     #fff;
+
+  --badge-bg:       #3b1717;
+  --badge-text:     #fca5a5;
+
+  --chip-text:       #93a8f0;
+
+  --result-ok-bg:   #0a1a0a;
+  --result-ok-border:#2a5a2a;
+  --result-dup-bg:  #1a1a0a;
+  --result-dup-border:#5a4a2a;
+  --result-bad-bg:  #1a0a0a;
+  --result-bad-border:#5a2a2a;
+
+  --error:           #ef4444;
+}
+
+/* ═── Light theme override ─────────────────────── */
+[data-theme="light"] {
+  --bg:             #f8fafc;
+  --bg-surface:      #fff;
+  --bg-hover:        #eef2ff;
+  --bg-chip:         #dbeafe;
+  --bg-grid-head:    #f1f5f9;
+  --bg-blank:        #f8fafc;
+  --bg-input:        #fff;
+
+  --text:            #1a1a1a;
+  --text-muted:      #666;
+  --text-snippet:    #444;
+
+  --border:          #ccc;
+  --border-grid:     #e5e5e5;
+
+  --accent:          #2563eb;
+  --accent-text:     #fff;
+
+  --badge-bg:       #fee2e2;
+  --badge-text:     #991b1b;
+
+  --chip-text:       #1e3a8a;
+
+  --result-ok-bg:   #f0fdf4;
+  --result-ok-border:#86efac;
+  --result-dup-bg:  #fffbeb;
+  --result-dup-border:#fcd34d;
+  --result-bad-bg:  #fef2f2;
+  --result-bad-border:#fca5a5;
+
+  --error:           #b91c1c;
+}
+
+/* ═── System preference (no manual override yet) ─────── */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg:             #f8fafc;
+    --bg-surface:      #fff;
+    --bg-hover:        #eef2ff;
+    --bg-chip:         #dbeafe;
+    --bg-grid-head:    #f1f5f9;
+    --bg-blank:        #f8fafc;
+    --bg-input:        #fff;
+
+    --text:            #1a1a1a;
+    --text-muted:      #666;
+    --text-snippet:    #444;
+
+    --border:          #ccc;
+    --border-grid:     #e5e5e5;
+
+    --accent:          #2563eb;
+    --accent-text:     #fff;
+
+    --badge-bg:       #fee2e2;
+    --badge-text:     #991b1b;
+
+    --chip-text:       #1e3a8a;
+
+    --result-ok-bg:   #f0fdf4;
+    --result-ok-border:#86efac;
+    --result-dup-bg:  #fffbeb;
+    --result-dup-border:#fcd34d;
+    --result-bad-bg:  #fef2f2;
+    --result-bad-border:#fca5a5;
+
+    --error:           #b91c1c;
+  }
+}
+
+/* ═── Base ─────────────────────────────────────── */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+* { box-sizing: border-box; }

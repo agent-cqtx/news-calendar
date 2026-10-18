@@ -2,12 +2,16 @@ import { Link, Route, Routes } from 'react-router-dom'
 import { DayPage } from './pages/DayPage'
 import { MonthPage } from './pages/MonthPage'
 import { PostPage } from './pages/PostPage'
+import { ThemeToggle } from './components/ThemeToggle'
 import './App.css'
 
 export default function App() {
   return (
     <main className="app">
-      <header className="top"><h1><Link to="/">News Calendar</Link></h1></header>
+      <header className="top">
+        <h1><Link to="/">News Calendar</Link></h1>
+        <ThemeToggle />
+      </header>
       <Routes>
         <Route path="/" element={<MonthPage />} />
         <Route path="/post" element={<PostPage />} />
