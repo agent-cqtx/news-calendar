@@ -12,7 +12,7 @@ Errors: `{"error": "message", "details": ...}` (details is optional).
 |---|---|
 | `GET /health` | `200 {"status":"ok","db":"up"}`, or `503` when the database is unreachable |
 | `GET /api/events/month/{yyyy-MM}` | `EventSummary[]`, ordered by date then title. Bad month: `400` |
-| `GET /api/events/all` | `EventSummary[]`, every stored event, ordered by date then title |
+| `GET /api/events/all?limit=50&offset=0` | `EventSummary[]`, every stored event, newest first (date desc, then title asc). `limit` defaults to 50 (1–200), `offset` defaults to 0 (≥ 0); out-of-range values: `400`; past-the-end offset: empty `200` |
 | `GET /api/events/day/{yyyy-MM-dd}` | `Event[]` with sources and updates, ordered by title. Bad date: `400` |
 | `GET /api/events/search?q=...&limit=25` | `EventSummary[]`, best match first, then newest. `q` required (`400` if blank). `limit` is 1 to 100. Uses web-style search: quoted phrases, `-exclude`, `or` |
 | `GET /api/events/{id}` | one `Event`, or `404` |

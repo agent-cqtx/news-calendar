@@ -150,13 +150,15 @@ public class EventApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task All_lists_events_from_more_than_one_month_in_chronological_order()
+    public async Task All_lists_events_from_more_than_one_month_newest_first()
     {
         await _http.PostAsJsonAsync("/api/events", Body("All nov event", "2030-11-28"));
         await _http.PostAsJsonAsync("/api/events", Body("All jan event", "2031-01-02"));
         await _http.PostAsJsonAsync("/api/events", Body("All mar event", "2031-03-15"));
 
-        var list = await Json(await _http.GetAsync("/api/events/all"));
+        // limit=200 (the max) so the whole fixture is on one page and the ordering
+        // is asserted globally; the default page is capped at 50 (see pagination tests).
+        var list = await Json(await _http.GetAsync("/api/events/all?limit=200"));
         var items = list.EnumerateArray()
             .Select(e => (date: e.GetProperty("date").GetString(), title: e.GetProperty("title").GetString()))
             .ToArray();
@@ -166,13 +168,91 @@ public class EventApiTests : IClassFixture<ApiFactory>
         Assert.Contains("2031-01", items.Select(i => i.date!.Substring(0, 7)));
         Assert.Contains("2031-03", items.Select(i => i.date!.Substring(0, 7)));
 
-        // whole response is ordered date ASC, then title ASC
-        Assert.Equal(items.OrderBy(i => i.date).ThenBy(i => i.title), items);
+        // whole response is ordered date DESC (newest first), then title ASC within a date
+        Assert.Equal(items.OrderByDescending(i => i.date).ThenBy(i => i.title), items);
 
-        // our three appear in the right relative order
+        // our three appear newest-first
         var ours = items.Where(i => i.title!.StartsWith("All ")).Select(i => i.date).ToArray();
-        Assert.Equal(new[] { "2030-11-28", "2031-01-02", "2031-03-15" }, ours);
+        Assert.Equal(new[] { "2031-03-15", "2031-01-02", "2030-11-28" }, ours);
     }
+
+    // ---- /all pagination ----
+    /// Seeding uses a DEDICATED ApiFactory: each factory boots its own app, so it
+    /// gets a fresh in-memory DB and a fresh write-rate-limit budget (60/min per
+    /// instance — 55 seed POSTs on the shared class fixture would 429 sibling tests).
+    /// Far-future dates so the seeds are the newest rows under date DESC.
+    private static async Task SeedPagingEvents(HttpClient http)
+    {
+        for (var i = 1; i <= 55; i++)
+        {
+            var res = await http.PostAsJsonAsync("/api/events",
+                Body($"Pag ev {i:D2}", new DateOnly(2040, 1, 1).AddDays(i).ToString("yyyy-MM-dd")));
+            Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task All_default_page_caps_at_50_newest_first()
+    {
+        using var factory = new ApiFactory();
+        var http = factory.CreateClient();
+        await SeedPagingEvents(http); // 55 events, nothing else in this DB
+
+        var res = await http.GetAsync("/api/events/all");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var titles = (await Json(res)).EnumerateArray()
+            .Select(e => e.GetProperty("title").GetString()).ToArray();
+
+        Assert.Equal(50, titles.Length);                          // default limit is 50
+        Assert.All(titles, t => Assert.StartsWith("Pag ev ", t!)); // newest 50 of our 55
+        Assert.Equal(new[] { "Pag ev 55", "Pag ev 54", "Pag ev 53" }, titles.Take(3)); // DESC
+    }
+
+    [Fact]
+    public async Task All_offset_returns_next_window_without_overlap()
+    {
+        using var factory = new ApiFactory();
+        var http = factory.CreateClient();
+        await SeedPagingEvents(http); // 55 events: page 1 = ev 55..06, page 2 = ev 05..01
+
+        var page1 = (await Json(await http.GetAsync("/api/events/all?limit=50&offset=0")))
+            .EnumerateArray().Select(e => e.GetProperty("title").GetString()).ToArray();
+        var page2 = (await Json(await http.GetAsync("/api/events/all?limit=50&offset=50")))
+            .EnumerateArray().Select(e => e.GetProperty("title").GetString()).ToArray();
+
+        Assert.Equal(50, page1.Length);
+        // DESC continues exactly where page 1 stopped: no overlap, no gap
+        Assert.Equal(new[] { "Pag ev 05", "Pag ev 04", "Pag ev 03", "Pag ev 02", "Pag ev 01" }, page2);
+        Assert.Empty(page1.Intersect(page2));
+    }
+
+    [Fact]
+    public async Task All_offset_past_the_end_returns_empty_200()
+    {
+        var res = await _http.GetAsync("/api/events/all?limit=50&offset=100000");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Empty((await Json(res)).EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("limit=0", "limit")]
+    [InlineData("limit=abc", "limit")]
+    [InlineData("limit=201", "limit")]
+    [InlineData("offset=-1", "offset")]
+    [InlineData("offset=abc", "offset")]
+    public async Task All_invalid_pagination_param_returns_400_with_field_details(string qs, string field)
+    {
+        var res = await _http.GetAsync($"/api/events/all?{qs}");
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.True((await Json(res)).GetProperty("details").TryGetProperty(field, out _));
+    }
+
+    [Theory]
+    [InlineData("limit=1")]
+    [InlineData("limit=200")]   // allowed maximum
+    [InlineData("offset=0")]
+    public async Task All_accepts_pagination_params_within_bounds(string qs) =>
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync($"/api/events/all?{qs}")).StatusCode);
 
     // ---- updates + delete ----
     [Fact]

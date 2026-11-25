@@ -29,10 +29,28 @@ public static class EventEndpoints
             return Results.Ok(items);
         });
 
-        read.MapGet("/all", async (AppDbContext db, CancellationToken ct) =>
+        // Newest first, paginated. Params read as strings so "abc" gets the per-field
+        // details error instead of the generic binding 400 from the middleware.
+        read.MapGet("/all", async (string? limit, string? offset, AppDbContext db, CancellationToken ct) =>
         {
+            var take = 50;   // default page size
+            var skip = 0;
+            var errors = new Dictionary<string, string>();
+            if (limit is not null)
+            {
+                if (!int.TryParse(limit, out take) || take < 1 || take > 200)
+                    errors["limit"] = "limit must be an integer between 1 and 200.";
+            }
+            if (offset is not null)
+            {
+                if (!int.TryParse(offset, out skip) || skip < 0)
+                    errors["offset"] = "offset must be an integer of 0 or greater.";
+            }
+            if (errors.Count > 0) return Errors.BadRequest("Validation failed.", errors);
+
             var items = await db.Events.AsNoTracking()
-                .OrderBy(e => e.EventDate).ThenBy(e => e.Title)
+                .OrderByDescending(e => e.EventDate).ThenBy(e => e.Title)
+                .Skip(skip).Take(take)
                 .Select(e => new EventSummaryDto(e.Id, e.EventDate, e.Title, e.Summary))
                 .ToListAsync(ct);
             return Results.Ok(items);

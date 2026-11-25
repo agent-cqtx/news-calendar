@@ -19,8 +19,8 @@ async function getJson<T>(url: string): Promise<T> {
 export const api = {
   eventsForMonth: (month: string) =>
     getJson<EventSummary[]>(`${BASE}/month/${encodeURIComponent(month)}`),
-  allEvents: () =>
-    getJson<EventSummary[]>(`${BASE}/all`),
+  allEvents: (limit = 50, offset = 0) =>
+    getJson<EventSummary[]>(`${BASE}/all?limit=${limit}&offset=${offset}`),
   eventsForDay: (date: string) =>
     getJson<EventDetail[]>(`${BASE}/day/${encodeURIComponent(date)}`),
   search: (q: string) =>
