@@ -53,7 +53,7 @@ services:
       HA_ORIGIN: ${HA_ORIGIN:-}
     ports:
       # WEB_BIND=127.0.0.1 -> only a reverse proxy on this machine can reach it (recommended for public use)
-      - "${WEB_BIND:-0.0.0.0}:8088:80"
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8088}:80"
     depends_on:
       api:
         condition: service_healthy

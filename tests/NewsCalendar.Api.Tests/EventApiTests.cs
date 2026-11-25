@@ -149,6 +149,31 @@ public class EventApiTests : IClassFixture<ApiFactory>
         Assert.Equal(new[] { "Early oct", "Late oct" }, titles);
     }
 
+    [Fact]
+    public async Task All_lists_events_from_more_than_one_month_in_chronological_order()
+    {
+        await _http.PostAsJsonAsync("/api/events", Body("All nov event", "2030-11-28"));
+        await _http.PostAsJsonAsync("/api/events", Body("All jan event", "2031-01-02"));
+        await _http.PostAsJsonAsync("/api/events", Body("All mar event", "2031-03-15"));
+
+        var list = await Json(await _http.GetAsync("/api/events/all"));
+        var items = list.EnumerateArray()
+            .Select(e => (date: e.GetProperty("date").GetString(), title: e.GetProperty("title").GetString()))
+            .ToArray();
+
+        // /all spans months — a single /month response could never do this.
+        Assert.Contains("2030-11", items.Select(i => i.date!.Substring(0, 7)));
+        Assert.Contains("2031-01", items.Select(i => i.date!.Substring(0, 7)));
+        Assert.Contains("2031-03", items.Select(i => i.date!.Substring(0, 7)));
+
+        // whole response is ordered date ASC, then title ASC
+        Assert.Equal(items.OrderBy(i => i.date).ThenBy(i => i.title), items);
+
+        // our three appear in the right relative order
+        var ours = items.Where(i => i.title!.StartsWith("All ")).Select(i => i.date).ToArray();
+        Assert.Equal(new[] { "2030-11-28", "2031-01-02", "2031-03-15" }, ours);
+    }
+
     // ---- updates + delete ----
     [Fact]
     public async Task Add_update_then_delete_event()

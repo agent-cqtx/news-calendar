@@ -5,6 +5,9 @@ import { api } from './client'
 export const useMonthEvents = (month: string) =>
   useQuery({ queryKey: ['events', 'month', month], queryFn: () => api.eventsForMonth(month) })
 
+export const useAllEvents = () =>
+  useQuery({ queryKey: ['events', 'all'], queryFn: api.allEvents })
+
 export const useDayEvents = (date: string) =>
   useQuery({ queryKey: ['events', 'day', date], queryFn: () => api.eventsForDay(date), enabled: date !== '' })
 

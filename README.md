@@ -1,6 +1,6 @@
 # News Calendar v1
 
-A personal calendar of news events: browse by month, open a day, search, and post new events.
+A personal calendar of news events: browse by month, view all events, open a day, search, and post new events.
 React (Vite) + ASP.NET Core API + PostgreSQL 16, run with Docker Compose. Built for a trusted home network, and it embeds in Home Assistant.
 
 ## Quick start

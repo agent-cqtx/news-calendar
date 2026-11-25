@@ -29,6 +29,15 @@ public static class EventEndpoints
             return Results.Ok(items);
         });
 
+        read.MapGet("/all", async (AppDbContext db, CancellationToken ct) =>
+        {
+            var items = await db.Events.AsNoTracking()
+                .OrderBy(e => e.EventDate).ThenBy(e => e.Title)
+                .Select(e => new EventSummaryDto(e.Id, e.EventDate, e.Title, e.Summary))
+                .ToListAsync(ct);
+            return Results.Ok(items);
+        });
+
         read.MapGet("/day/{date}", async (string date, AppDbContext db, CancellationToken ct) =>
         {
             if (!DateParsing.TryDay(date, out var d)) return Errors.BadRequest("Date must be yyyy-MM-dd.");
